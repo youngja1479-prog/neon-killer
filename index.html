@@ -78,9 +78,9 @@ select{background:#0b0816;color:#fff;border:1px solid #5b4b8a;border-radius:8px;
   <div class="help">
   <b class="r">도망자</b>: 3분 동안 한 명이라도 살아남으면 승리. 살인자에게 닿으면 탈락.<br>
   · <b>함정</b>: 등 뒤에 함정 설치 (최대 2개) — 밟은 살인자는 잠시 기절<br>
-  · <b>숨기</b>: 상자(주황, 부서짐)나 벙커(보라, 안 부서짐, 최대 8초)에 숨기<br>
+  · <b>숨기</b>: 주황 상자에 숨기 — 한 번에 부서짐<br>
   <b class="k">살인자</b>: 10초 뒤 출발, 도망자보다 1.5배 빠름. 모두 잡으면 승리.<br>
-  · <b>부수기</b>: 주황 상자를 부숨 — 안에 숨은 도망자가 튀어나옴<br>
+  · <b>부수기</b>: 주황 상자를 한 번에 부숨 — 안에 숨은 도망자가 튀어나옴<br>
   · 공통 <b>부스트</b>: 잠깐 빨라짐<br>
   PC: WASD/방향키 이동 · Space 부스트 · E 함정/부수기 · Q 숨기
   </div>
@@ -121,7 +121,7 @@ const MATCH=180,RELEASE=10;
 const RS=170,KS=RS*1.5,RR=14,KR=17;
 const BOOST={dur:1.4,mul:1.6,cdR:7,cdK:9};
 const TRAP={cd:10,max:2,stun:1.6,r:20};
-const SMASH={cd:0.5,reach:26,hp:3};
+const SMASH={cd:0.5,reach:26,hp:1};
 const HIDE={max:8,recd:4,range:26};
 const KCOL='#ff2d55',RCOL='#2ff3ff';
 const PREFIX='neonkiller-gkc7-',ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -135,7 +135,7 @@ function rng(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=
 let M=null;
 function genMap(seed){
   const R=rng(seed),S=[],occ=new Int16Array(NC);
-  const add=(type,cx,cy,cw,ch)=>{const s={i:S.length,type,cx,cy,cw,ch,x:cx*CS,y:cy*CS,w:cw*CS,h:ch*CS,hp:type==='crate'?SMASH.hp:1,hider:null,shake:0,rt:5};S.push(s);for(let y=cy;y<cy+ch;y++)for(let x=cx;x<cx+cw;x++)occ[y*GW+x]=s.i+1;return s};
+  const add=(type,cx,cy,cw,ch)=>{const s={i:S.length,type,cx,cy,cw,ch,x:cx*CS,y:cy*CS,w:cw*CS,h:ch*CS,hp:type==='crate'?SMASH.hp:1,hider:null,shake:0};S.push(s);for(let y=cy;y<cy+ch;y++)for(let x=cx;x<cx+cw;x++)occ[y*GW+x]=s.i+1;return s};
   add('wall',0,0,GW,1);add('wall',0,GH-1,GW,1);add('wall',0,1,1,GH-2);add('wall',GW-1,1,1,GH-2);
   const resv=(x,y)=>(x>=25&&x<35&&y>=16&&y<24)||((x<8||x>=GW-8)&&(y<7||y>=GH-7));
   const ok=(rects,m)=>{for(const [cx,cy,cw,ch] of rects){for(let y=cy-m;y<cy+ch+m;y++)for(let x=cx-m;x<cx+cw+m;x++){if(x<0||y<0||x>=GW||y>=GH)return false;if(occ[y*GW+x])return false}for(let y=cy;y<cy+ch;y++)for(let x=cx;x<cx+cw;x++)if(resv(x,y))return false}return true};
@@ -144,11 +144,9 @@ function genMap(seed){
     const rs=[hor?[cx,cy,L,1]:[cx,cy,1,L]];
     if(R()<.5){const L2=2+(R()*4|0),end=R()<.5;if(hor){const ax=end?cx+L-1:cx;rs.push(R()<.5?[ax,cy+1,1,L2]:[ax,cy-L2,1,L2])}else{const ay=end?cy+L-1:cy;rs.push(R()<.5?[cx+1,ay,L2,1]:[cx-L2,ay,L2,1])}}
     if(ok(rs,2)){for(const r of rs)add('wall',r[0],r[1],r[2],r[3]);n++}}
-  // 벙커 (안 부서짐, 숨기 가능)
-  const bks=[];n=0;for(let t=0;t<900&&n<9;t++){const cx=3+(R()*(GW-6)|0),cy=3+(R()*(GH-6)|0);if(bks.some(b=>Math.abs(b[0]-cx)+Math.abs(b[1]-cy)<14))continue;if(ok([[cx,cy,2,2]],2)){add('bunker',cx,cy,2,2);bks.push([cx,cy]);n++}}
-  // 상자 (부서짐, 숨기 가능) — 1~3개 줄
-  n=0;for(let t=0;t<1500&&n<26;t++){const k=1+(R()*3|0),hor=R()<.5,cx=2+(R()*(GW-4)|0),cy=2+(R()*(GH-4)|0);const w=hor?2*k:2,h=hor?2:2*k;
-    if(ok([[cx,cy,w,h]],1)){for(let j=0;j<k;j++)add('crate',hor?cx+2*j:cx,hor?cy:cy+2*j,2,2);n++}}
+  // 상자 (부서짐, 숨기 가능, 한 번에 부서짐) — 1~3개 줄, 수 감소
+  n=0;for(let t=0;t<1500&&n<12;t++){const k=1+(R()*3|0),hor=R()<.5,cx=2+(R()*(GW-4)|0),cy=2+(R()*(GH-4)|0);const w=hor?2*k:2,h=hor?2:2*k;
+    if(ok([[cx,cy,w,h]],2)){for(let j=0;j<k;j++)add('crate',hor?cx+2*j:cx,hor?cy:cy+2*j,2,2);n++}}
   const m={seed,S,occ,hides:S.filter(s=>s.type!=='wall').map(s=>s.i),crates:S.filter(s=>s.type==='crate').map(s=>s.i)};
   return m}
 const ccx=c=>(c%GW)*CS+CS/2,ccy=c=>((c/GW)|0)*CS+CS/2;
@@ -193,7 +191,7 @@ function breakCrate(s,k){removeStruct(s);ev({k:'break',i:s.i});
 function hideTarget(e){let best=null,bd=1e9;for(const i of M.hides){const s=M.S[i];if(s.hider||(s.type==='crate'&&s.hp<=0))continue;const d=rectDist(e.x,e.y,s);if(d<e.r+HIDE.range&&d<bd){bd=d;best=s}}return best}
 function doHide(e){if(!e.alive||e.k)return false;if(e.hid>=0){exitHide(e);return true}
   if(e.hideCd>0||e.stun>0)return false;const s=hideTarget(e);if(!s)return false;
-  s.hider=e.id;e.hid=s.i;e.hideT=0;e.ex=e.x;e.ey=e.y;e.x=s.x+s.w/2;e.y=s.y+s.h/2;e.vx=e.vy=0;s.rt=4+Math.random()*4;ev({k:'hide',id:e.id,i:s.i});return true}
+  s.hider=e.id;e.hid=s.i;e.hideT=0;e.ex=e.x;e.ey=e.y;e.x=s.x+s.w/2;e.y=s.y+s.h/2;e.vx=e.vy=0;ev({k:'hide',id:e.id,i:s.i});return true}
 function exitHide(e){const s=M.S[e.hid];if(s)s.hider=null;e.hid=-1;e.hideCd=HIDE.recd;
   const k=killerOf(),cx=s.x+s.w/2,cy=s.y+s.h/2,o=e.r+3;
   const cands=[[cx,s.y-o],[cx,s.y+s.h+o],[s.x-o,cy],[s.x+s.w+o,cy],[s.x-o,s.y-o],[s.x+s.w+o,s.y-o],[s.x-o,s.y+s.h+o],[s.x+s.w+o,s.y+s.h+o]];
@@ -206,10 +204,7 @@ function step(dt){
   for(const e of G.ents)if(e.ai&&e.alive)aiTick(e,dt);
   for(const e of G.ents){if(!e.alive)continue;
     e.boostT-=dt;e.boostCd-=dt;e.trapCd-=dt;e.smashCd-=dt;e.hideCd-=dt;e.imm-=dt;e.slowT-=dt;
-    if(e.hid>=0){e.hideT+=dt;const s=M.S[e.hid];
-      if(s.type==='bunker'){if(e.hideT>=HIDE.max)exitHide(e)}
-      else{s.rt-=dt;if(s.rt<=0){s.rt=5+Math.random()*3;s.shake=0.4;ev({k:'rattle',i:s.i})}}
-      e.vx=e.vy=0;continue}
+    if(e.hid>=0){e.hideT+=dt;e.vx=e.vy=0;continue}
     if(e.k&&t<RELEASE){e.vx=e.vy=0;continue}
     if(e.stun>0){e.stun-=dt;e.vx=e.vy=0;continue}
     let mx=e.mx,my=e.my;const m=hyp(mx,my);if(m>1){mx/=m;my/=m}
@@ -262,7 +257,7 @@ function steer(e,A,dt){
   e.mx=dx*A.spd;e.my=dy*A.spd;
   A.stuck+=dt;if(A.stuck>0.8){if(hyp(e.x-A.px,e.y-A.py)<22&&e.stun<=0){const a=Math.random()*6.283;A.jit=0.35;A.jx=Math.cos(a);A.jy=Math.sin(a)}A.stuck=0;A.px=e.x;A.py=e.y}}
 
-// ---- 살인자 AI: 시야(벽에 막힘) + 반응 지연 + 기억. 숨은 도망자의 위치는 '숨는 걸 봤을 때'나 '상자가 덜컹거릴 때'만 앎.
+// ---- 살인자 AI: 시야(벽에 막힘) + 반응 지연 + 기억. 숨은 도망자의 위치는 '숨는 걸 봤을 때'만 앎.
 function killerThink(k,A){const t=G.t;A.dir=null;A.hold=false;A.spd=1;
   if(t<RELEASE){A.mode='wait';return}
   if(k.stun>0)return;
@@ -283,10 +278,9 @@ function killerThink(k,A){const t=G.t;A.dir=null;A.hold=false;A.spd=1;
     A.search=[];return}
   A.tgt=null;
   // 숨은 곳을 알고 있음
-  let kh=-1,khd=1e9;for(const key in A.known){const i=+key,s=M.S[i];if((s.type==='crate'&&s.hp<=0)||t-A.known[key]>(s.type==='bunker'?HIDE.max+3:25)){delete A.known[key];continue}const d=rectDist(k.x,k.y,s);if(d<khd){khd=d;kh=i}}
+  let kh=-1,khd=1e9;for(const key in A.known){const i=+key,s=M.S[i];if((s.type==='crate'&&s.hp<=0)||t-A.known[key]>25){delete A.known[key];continue}const d=rectDist(k.x,k.y,s);if(d<khd){khd=d;kh=i}}
   if(kh>=0){const s=M.S[kh];A.mode='hunt';
-    if(s.type==='crate'){A.field=dijkstra(cellsOf(s),true)}
-    else{if(khd<70)A.hold=true;else A.field=dijkstra(ringCells(s),true)}
+    A.field=dijkstra(cellsOf(s),true);
     return}
   // 마지막으로 본 곳 추적 → 근처 숨을 곳 수색
   let ls=null;for(const id in A.seen){const S=A.seen[id];if(!S.done&&t-S.t<7&&(!ls||S.t>ls.t))ls=S}
@@ -304,10 +298,6 @@ function killerThink(k,A){const t=G.t;A.dir=null;A.hold=false;A.spd=1;
   A.field=A.pfield}
 function regionOf(x,y){return clamp((y/(WH/4))|0,0,3)*6+clamp((x/(WW/6))|0,0,5)}
 function cellsOf(s){const o=[];for(let y=s.cy;y<s.cy+s.ch;y++)for(let x=s.cx;x<s.cx+s.cw;x++)o.push(y*GW+x);return o}
-function aiHear(o){ // 상자 덜컹 소리
-  if(o.k!=='rattle')return;const k=killerOf();if(!k||!k.ai||!k.alive||!k.ain)return;const s=M.S[o.i];const d=rectDist(k.x,k.y,s);
-  if(d<380&&los(k.x,k.y,s.x+s.w/2,s.y+s.h/2,s.i)&&Math.random()<0.6)k.ain.known[s.i]=G.t}
-
 // ---- 도망자 AI: 살인자 거리장 기반 도주(장애물 돌기), 부스트/함정 사용, 시야 끊기면 숨기. 실수와 반응 지연 있음.
 function runnerThink(r,A){const t=G.t,k=killerOf();A.dir=null;A.hold=false;
   let visNow=false;
@@ -319,8 +309,7 @@ function runnerThink(r,A){const t=G.t,k=killerOf();A.dir=null;A.hold=false;
   A.react=0.25+Math.random()*0.25;
   const known=t-A.kt<3,kd=known?hyp(A.kx-r.x,A.ky-r.y):1e9;
   if(r.hid>=0){const s=M.S[r.hid];
-    if(s.type==='bunker'){if(r.hideT>A.leaveAt&&(!known||kd>260))doHide(r)}
-    else{const threat=known&&kd<190;if((threat&&Math.random()<0.4)||(s.hp<SMASH.hp&&Math.random()<0.6)){doHide(r);if(r.boostCd<=0)doBoost(r)}else if(r.hideT>A.leaveAt&&(!known||kd>350))doHide(r)}
+    const threat=known&&kd<190;if((threat&&Math.random()<0.4)||(s.hp<SMASH.hp&&Math.random()<0.6)){doHide(r);if(r.boostCd<=0)doBoost(r)}else if(r.hideT>A.leaveAt&&(!known||kd>350))doHide(r)
     return}
   const danger=known&&kd<560&&(t>=RELEASE-1.5);
   if(danger){A.mode='flee';A.spd=1;A.hgoal=null;A.rgoal=null;
@@ -330,11 +319,11 @@ function runnerThink(r,A){const t=G.t,k=killerOf();A.dir=null;A.hold=false;
     if(cand.length){const pick=Math.random()<0.85?cand[0]:cand[Math.random()*Math.min(6,cand.length)|0];A.field=dijkstra([pick[1]],false)}
     if(r.boostCd<=0&&((kd<170&&Math.random()<0.75)||(kd<280&&Math.random()<0.08)))doBoost(r);
     if(r.trapCd<=0&&kd<300&&kd>40){const ax=r.x-A.kx,ay=r.y-A.ky,an=hyp(ax,ay)||1,vn=hyp(r.vx,r.vy)||1;if((ax*r.vx+ay*r.vy)/(an*vn)>0.4&&Math.random()<0.6)doTrap(r)}
-    if(!A.kv&&kd>170&&r.hideCd<=0){const s=hideTarget(r);if(s&&Math.random()<0.5){if(doHide(r))A.leaveAt=s.type==='bunker'?3+Math.random()*4.5:6+Math.random()*10}}
+    if(!A.kv&&kd>170&&r.hideCd<=0){const s=hideTarget(r);if(s&&Math.random()<0.5){if(doHide(r))A.leaveAt=6+Math.random()*10}}
     return}
   A.mode='roam';A.spd=0.85;
-  if(A.hgoal==null&&t>=RELEASE&&t-A.kt>4&&Math.random()<0.1&&r.hideCd<=0){let bs=null,bd=520;for(const i of M.hides){const s=M.S[i];if(s.hider||(s.type==='crate'&&s.hp<=0))continue;if(G.ents.some(o=>o!==r&&!o.k&&o.ain&&o.ain.hgoal===i))continue;const d=rectDist(r.x,r.y,s)+(s.type==='bunker'?60:0);if(d<bd){bd=d;bs=s}}if(bs){A.hgoal=bs.i;A.field=dijkstra(ringCells(bs),false)}}
-  if(A.hgoal!=null){const s=M.S[A.hgoal];if(s.hider||(s.type==='crate'&&s.hp<=0)){A.hgoal=null}else{if(rectDist(r.x,r.y,s)<HIDE.range+r.r-4){if(doHide(r))A.leaveAt=s.type==='bunker'?3+Math.random()*4.5:8+Math.random()*15;A.hgoal=null}return}}
+  if(A.hgoal==null&&t>=RELEASE&&t-A.kt>4&&Math.random()<0.1&&r.hideCd<=0){let bs=null,bd=520;for(const i of M.hides){const s=M.S[i];if(s.hider||(s.type==='crate'&&s.hp<=0))continue;if(G.ents.some(o=>o!==r&&!o.k&&o.ain&&o.ain.hgoal===i))continue;const d=rectDist(r.x,r.y,s);if(d<bd){bd=d;bs=s}}if(bs){A.hgoal=bs.i;A.field=dijkstra(ringCells(bs),false)}}
+  if(A.hgoal!=null){const s=M.S[A.hgoal];if(s.hider||(s.type==='crate'&&s.hp<=0)){A.hgoal=null}else{if(rectDist(r.x,r.y,s)<HIDE.range+r.r-4){if(doHide(r))A.leaveAt=8+Math.random()*15;A.hgoal=null}return}}
   if(A.rgoal==null||t>A.rUntil||hyp(ccx(A.rgoal)-r.x,ccy(A.rgoal)-r.y)<60){let best=-1,bs=-1e9;
     for(let i=0;i<30;i++){const c=(Math.random()*NC)|0;if(M.occ[c])continue;const x=ccx(c),y=ccy(c),d=hyp(x-r.x,y-r.y);if(d>650||d<120)continue;
       let sc=(t-A.kt<20||t<RELEASE?Math.min(hyp(x-A.kx,y-A.ky),900)*0.01:0)-d*0.002+Math.random()*2;
@@ -459,19 +448,18 @@ function applySnap(d){if(!G)return;G.t=d.tm;G.log=d.log||[];
   for(const v of d.ev||[])onEvent(v);
   if(d.end&&!G.ended){G.ended=true;G.win=d.end}}
 // ================= 이벤트 (효과/알림) =================
-function onEvent(o){if(!G)return;aiHear&&net.role!=='client'&&aiHear(o);
+function onEvent(o){if(!G)return;
   const e=o.id?entById(o.id):null;
   if(o.k==='catch'){burst(o.x,o.y,RCOL,30);sfx('catch');if(e===ME){banner('잡혔다!',KCOL,2.5,'관전 모드 — 화면을 탭하면 시점 변경');try{navigator.vibrate&&navigator.vibrate(300)}catch(_){}}else banner((e?e.name:'')+' 잡힘!',KCOL,1.8)}
   else if(o.k==='trap'){burst(o.x,o.y,'#ffe45c',24);sfx('trap');if(ME&&ME.k)banner('함정에 걸렸다!','#ffe45c',1.4);else banner('살인자가 함정에 걸렸다!','#ffe45c',1.4)}
   else if(o.k==='smash'){const s=M.S[o.i];if(s)burst(s.x+s.w/2,s.y+s.h/2,'#ff9a3d',8);sfx('smash')}
   else if(o.k==='break'){const s=M.S[o.i];if(s)burst(s.x+s.w/2,s.y+s.h/2,'#ff9a3d',26);sfx('break')}
   else if(o.k==='flush'){if(e===ME)banner('들켰다! 도망쳐!','#ff9a3d',1.4);else if(ME&&ME.k)banner('찾았다!',KCOL,1.2)}
-  else if(o.k==='rattle'){if(ME&&ME.k){const s=M.S[o.i];if(s&&hyp(s.x-ME.x,s.y-ME.y)<500)sfx('rattle')}}
   else if(o.k==='end'){}}
 function burst(x,y,c,n){for(let i=0;i<n;i++){const a=Math.random()*6.283,v=40+Math.random()*180;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:0.5+Math.random()*0.5,c})}}
 function banner(t,c,dur,sub){const b=$('banner');b.innerHTML='';b.appendChild(document.createTextNode(t));if(sub){const s=document.createElement('small');s.textContent=sub;b.appendChild(s)}b.style.color=c;b.style.opacity=1;bannerT=dur||1.5}
 let AC=null;function sfx(k){try{if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);const t=AC.currentTime;
-  const P={start:[440,880,.25,'square'],catch:[300,60,.5,'sawtooth'],trap:[900,200,.35,'square'],smash:[160,90,.08,'square'],break:[200,50,.25,'sawtooth'],rattle:[120,180,.12,'triangle'],boost:[300,700,.15,'sine'],hide:[500,300,.1,'sine']}[k];if(!P)return;
+  const P={start:[440,880,.25,'square'],catch:[300,60,.5,'sawtooth'],trap:[900,200,.35,'square'],smash:[160,90,.08,'square'],break:[200,50,.25,'sawtooth'],boost:[300,700,.15,'sine'],hide:[500,300,.1,'sine']}[k];if(!P)return;
   o.type=P[3];o.frequency.setValueAtTime(P[0],t);o.frequency.exponentialRampToValueAtTime(P[1],t+P[2]);g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.001,t+P[2]);o.start(t);o.stop(t+P[2]+0.02)}catch(e){}}
 // ================= 입력 =================
 const isTouch=('ontouchstart' in window)||navigator.maxTouchPoints>0;
@@ -513,7 +501,7 @@ function buildBg(){bgCv=document.createElement('canvas');bgCv.width=WW;bgCv.heig
   for(const s of M.S){if(s.type!=='wall')continue;g.fillStyle='#1a0f3a';g.fillRect(s.x,s.y,s.w,s.h);g.strokeStyle='#a77bff';g.lineWidth=3;g.strokeRect(s.x+2,s.y+2,s.w-4,s.h-4)}
   g.shadowBlur=0;
   miniBg=document.createElement('canvas');miniBg.width=150;miniBg.height=100;const m=miniBg.getContext('2d');const sc=150/WW;
-  m.fillStyle='#0a0614';m.fillRect(0,0,150,100);for(const s of M.S){if(s.type==='wall')m.fillStyle='#7a55e0';else if(s.type==='bunker')m.fillStyle='#c08bff';else continue;m.fillRect(s.x*sc,s.y*sc,Math.max(1,s.w*sc),Math.max(1,s.h*sc))}}
+  m.fillStyle='#0a0614';m.fillRect(0,0,150,100);for(const s of M.S){if(s.type!=='wall')continue;m.fillStyle='#7a55e0';m.fillRect(s.x*sc,s.y*sc,Math.max(1,s.w*sc),Math.max(1,s.h*sc))}}
 function camTarget(){if(ME&&ME.alive)return ME;if(!specId||!entById(specId)||!entById(specId).alive){const al=G.ents.find(e=>e.alive&&!e.k);specId=(al||killerOf()||ME).id}return entById(specId)}
 let camX=WW/2,camY=WH/2;
 // 성능: 네온 글로우(shadowBlur)는 매 프레임 그리지 않고, 미리 그린 스프라이트를 재사용
@@ -532,9 +520,7 @@ function drawBgTiles(g,sc,ox,oy){if(tileS!==sc||tileBg!==bgCv){tileC.clear();til
   for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++)g.drawImage(bgTile(i,j,sc),ox+i*TD,oy+j*TD);
   g.imageSmoothingEnabled=true}
 function spr(key,w,h,pad,sc,fn){if(sc!==sprS){sprC={};sprS=sc}let c=sprC[key];if(!c){c=document.createElement('canvas');c.width=Math.ceil((w+pad*2)*sc);c.height=Math.ceil((h+pad*2)*sc);const x=c.getContext('2d');x.scale(sc,sc);x.translate(pad,pad);fn(x);sprC[key]=c}return c}
-function crateSpr(hp,w,h,sc){return spr('c'+hp+'_'+w+'x'+h,w,h,20,sc,g=>{const st={x:0,y:0,w,h};g.shadowColor='#ff8a3d';g.shadowBlur=10;g.fillStyle='#2a1406';g.fillRect(st.x+4,st.y+4,st.w-8,st.h-8);g.strokeStyle='#ff8a3d';g.lineWidth=3;g.strokeRect(st.x+5,st.y+5,st.w-10,st.h-10);g.shadowBlur=0;g.beginPath();g.moveTo(st.x+8,st.y+8);g.lineTo(st.x+st.w-8,st.y+st.h-8);g.moveTo(st.x+st.w-8,st.y+8);g.lineTo(st.x+8,st.y+st.h-8);g.lineWidth=1.5;g.strokeStyle='rgba(255,138,61,.5)';g.stroke();
-      for(let i=0;i<SMASH.hp;i++){g.fillStyle=i<hp?'#ffb070':'#4a2a14';g.fillRect(st.x+st.w/2-16+i*12,st.y+st.h-14,9,4)}})}
-function bunkerSpr(w,h,sc){return spr('b_'+w+'x'+h,w,h,24,sc,g=>{const st={x:0,y:0,w,h};g.shadowColor='#c08bff';g.shadowBlur=14;g.fillStyle='#190d2e';g.beginPath();g.roundRect?g.roundRect(st.x+3,st.y+3,st.w-6,st.h-6,14):g.rect(st.x+3,st.y+3,st.w-6,st.h-6);g.fill();g.strokeStyle='#d6a8ff';g.lineWidth=3;g.stroke();g.shadowBlur=0;g.fillStyle='#d6a8ff';g.font='bold 13px sans-serif';g.textAlign='center';g.fillText('벙커',st.x+st.w/2,st.y+st.h/2+5)})}
+function crateSpr(hp,w,h,sc){return spr('c'+hp+'_'+w+'x'+h,w,h,20,sc,g=>{const st={x:0,y:0,w,h};g.shadowColor='#ff8a3d';g.shadowBlur=10;g.fillStyle='#2a1406';g.fillRect(st.x+4,st.y+4,st.w-8,st.h-8);g.strokeStyle='#ff8a3d';g.lineWidth=3;g.strokeRect(st.x+5,st.y+5,st.w-10,st.h-10);g.shadowBlur=0;g.beginPath();g.moveTo(st.x+8,st.y+8);g.lineTo(st.x+st.w-8,st.y+st.h-8);g.moveTo(st.x+st.w-8,st.y+8);g.lineTo(st.x+8,st.y+st.h-8);g.lineWidth=1.5;g.strokeStyle='rgba(255,138,61,.5)';g.stroke()})}
 function bodySpr(k,r,sc){const col=k?KCOL:RCOL;return spr('e'+(k?1:0)+'_'+r,r*2,r*2,28,sc,g=>{g.shadowColor=col;g.shadowBlur=18;g.fillStyle=k?'#3a0612':'#04262c';g.beginPath();g.arc(r,r,r,0,7);g.fill();g.strokeStyle=col;g.lineWidth=4;g.stroke();g.shadowBlur=0})}
 function draw(dt){const g=ctx;g.setTransform(1,0,0,1,0,0);g.fillStyle='#030208';g.fillRect(0,0,cv.width,cv.height);if(!G||!M)return;
   const c=camTarget();if(c){camX+=(c.x-camX)*Math.min(1,dt*10);camY+=(c.y-camY)*Math.min(1,dt*10)}
@@ -546,13 +532,12 @@ function draw(dt){const g=ctx;g.setTransform(1,0,0,1,0,0);g.fillStyle='#030208';
   const vx0=camX-W/2/z-80,vx1=camX+W/2/z+80,vy0=camY-H/2/z-80,vy1=camY+H/2/z+80;
   const SS=Math.min(3,Math.ceil(s*2)/2);
   const iAmK=ME&&ME.k,t=G.t,now=performance.now()/1000;
-  // 상자/벙커
+  // 상자
   for(const st of M.S){if(st.type==='wall')continue;if(st.x>vx1||st.x+st.w<vx0||st.y>vy1||st.y+st.h<vy0)continue;
     if(st.type==='crate'&&st.hp<=0){g.fillStyle='rgba(255,140,60,0.10)';g.fillRect(st.x+10,st.y+10,st.w-20,st.h-20);continue}
     let ox=0,oy=0;if(st.shake>0){ox=(Math.random()-.5)*6;oy=(Math.random()-.5)*6}
     if(st.type==='crate'){const pd=20;g.drawImage(crateSpr(st.hp,st.w,st.h,SS),st.x+ox-pd,st.y+oy-pd,st.w+pd*2,st.h+pd*2)}
-    else{const pd=24;g.drawImage(bunkerSpr(st.w,st.h,SS),st.x+ox-pd,st.y+oy-pd,st.w+pd*2,st.h+pd*2)}
-    if(st.hider&&ME&&!iAmK){const h=entById(st.hider);if(h){g.globalAlpha=0.55;g.fillStyle=RCOL;g.beginPath();g.arc(st.x+st.w/2,st.y+st.h/2,9,0,7);g.fill();g.globalAlpha=1;if(st.type==='bunker'){g.strokeStyle='#fff';g.lineWidth=3;g.beginPath();g.arc(st.x+st.w/2,st.y+st.h/2,30,-1.57,-1.57+6.283*(1-h.hideT/HIDE.max));g.stroke()}}}}
+    if(st.hider&&ME&&!iAmK){const h=entById(st.hider);if(h){g.globalAlpha=0.55;g.fillStyle=RCOL;g.beginPath();g.arc(st.x+st.w/2,st.y+st.h/2,9,0,7);g.fill();g.globalAlpha=1}}}
   // 함정
   for(const tr of G.traps){let a=1;if(iAmK){const d=hyp(tr.x-ME.x,tr.y-ME.y);if(d>150)continue;a=0.35*(1-d/150)+0.1}if(tr.x<vx0||tr.x>vx1||tr.y<vy0||tr.y>vy1)continue;
     g.globalAlpha=a;g.shadowColor='#ffe45c';g.shadowBlur=10;g.strokeStyle='#ffe45c';g.lineWidth=3;g.beginPath();const p=0.8+0.2*Math.sin(now*6);g.arc(tr.x,tr.y,TRAP.r*p*0.75,0,7);g.moveTo(tr.x-9,tr.y-9);g.lineTo(tr.x+9,tr.y+9);g.moveTo(tr.x+9,tr.y-9);g.lineTo(tr.x-9,tr.y+9);g.stroke();g.shadowBlur=0;g.globalAlpha=1}
@@ -586,7 +571,7 @@ function drawMini(){const m=$('mini').getContext('2d');m.drawImage(miniBg,0,0);c
   for(const i of M.crates){const s=M.S[i];if(s.hp<=0)continue;m.fillStyle='#ff8a3d';m.fillRect(s.x*sc,s.y*sc,Math.max(1,s.w*sc),Math.max(1,s.h*sc))}
   for(const e of G.ents){if(!e.alive)continue;const mine=e===ME;if(!mine){if(ME&&ME.k)continue;if(e.k)continue;if(e.hid>=0&&!(ME&&!ME.k))continue}m.fillStyle=mine?'#fff':(e.k?KCOL:RCOL);m.beginPath();m.arc(e.x*sc,e.y*sc,mine?3.2:2.4,0,7);m.fill()}}
 function updHud(){const t=G.t,rem=Math.max(0,MATCH-t);$('tmr').textContent=fmt(rem);$('tmr').style.color=rem<30?'#ffe45c':'#fff';
-  let ph='';if(t<RELEASE)ph=(ME&&ME.k?'출발까지 ':'살인자 출발까지 ')+Math.ceil(RELEASE-t)+'초';else if(ME&&!ME.alive)ph='관전 중 — 탭/클릭하면 시점 변경';else if(ME&&ME.hid>=0){const s=M.S[ME.hid];ph=s.type==='bunker'?'벙커에 숨는 중 · '+Math.ceil(HIDE.max-ME.hideT)+'초 남음':'상자에 숨는 중 · 덜컹거리면 들킬 수 있어요'}else ph=ME&&ME.k?'모두 잡아라!':'살아남아라!';$('phase').textContent=ph;
+  let ph='';if(t<RELEASE)ph=(ME&&ME.k?'출발까지 ':'살인자 출발까지 ')+Math.ceil(RELEASE-t)+'초';else if(ME&&!ME.alive)ph='관전 중 — 탭/클릭하면 시점 변경';else if(ME&&ME.hid>=0){ph='상자에 숨는 중'}else ph=ME&&ME.k?'모두 잡아라!':'살아남아라!';$('phase').textContent=ph;
   const al=$('alive');al.innerHTML='';for(const e of G.ents){const d=document.createElement('div');d.textContent=(e.k?'🔪 ':(e.alive?'🏃 ':'💀 '))+e.name;d.style.color=e.k?'#ff8aa0':(e.alive?'#9ff8ff':'#777');al.appendChild(d)}
   if(ME){$('me').textContent=(ME.k?'나: 살인자':'나: 도망자')+(isTouch?'':' · Space 부스트 · E '+(ME.k?'부수기':'함정')+(ME.k?'':' · Q 숨기'));
     const cdTxt=(id,v,base)=>{const b=$(id);b.classList.toggle('cd',v>0);b.querySelector('small').textContent=v>0?Math.ceil(v)+'초':base};

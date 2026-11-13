@@ -144,8 +144,8 @@ function genMap(seed){
     const rs=[hor?[cx,cy,L,1]:[cx,cy,1,L]];
     if(R()<.5){const L2=2+(R()*4|0),end=R()<.5;if(hor){const ax=end?cx+L-1:cx;rs.push(R()<.5?[ax,cy+1,1,L2]:[ax,cy-L2,1,L2])}else{const ay=end?cy+L-1:cy;rs.push(R()<.5?[cx+1,ay,L2,1]:[cx-L2,ay,L2,1])}}
     if(ok(rs,2)){for(const r of rs)add('wall',r[0],r[1],r[2],r[3]);n++}}
-  // 상자 (부서짐, 숨기 가능, 한 번에 부서짐) — 1~3개 줄, 수 감소
-  n=0;for(let t=0;t<1500&&n<12;t++){const k=1+(R()*3|0),hor=R()<.5,cx=2+(R()*(GW-4)|0),cy=2+(R()*(GH-4)|0);const w=hor?2*k:2,h=hor?2:2*k;
+  // 상자 (부서짐, 숨기 가능, 한 번에 부서짐) — 1~3개 줄
+  n=0;for(let t=0;t<1500&&n<20;t++){const k=1+(R()*3|0),hor=R()<.5,cx=2+(R()*(GW-4)|0),cy=2+(R()*(GH-4)|0);const w=hor?2*k:2,h=hor?2:2*k;
     if(ok([[cx,cy,w,h]],2)){for(let j=0;j<k;j++)add('crate',hor?cx+2*j:cx,hor?cy:cy+2*j,2,2);n++}}
   const m={seed,S,occ,hides:S.filter(s=>s.type!=='wall').map(s=>s.i),crates:S.filter(s=>s.type==='crate').map(s=>s.i)};
   return m}
